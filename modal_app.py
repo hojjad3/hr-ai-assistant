@@ -22,9 +22,9 @@ app = modal.App("hr-ai-assistant", image=image)
         modal.Secret.from_name("groq-secret"),
         modal.Secret.from_name("hr-login-secret")
     ],
-    allow_concurrent_inputs=100,
     max_containers=1,
 )
+@modal.concurrent(max_inputs=100)
 @modal.asgi_app()
 def fastapi_app():
     # Set the storage secret if not defined
