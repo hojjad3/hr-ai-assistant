@@ -24,22 +24,21 @@ def setup_gui() -> None:
                 ui.icon('psychology', size='4rem', color='#818cf8')
                 ui.markdown('### HR Assistant Login').classes('m-0 p-0 font-bold tracking-tight text-white')
                 
-                # We assign specific IDs so our pure JS can find the input fields
-                emp_id = ui.input('Employee ID', placeholder='e.g. EMP001').classes('w-full').props('dark outlined id="emp_val"')
-                password = ui.input('Password', password=True, password_toggle_button=True).classes('w-full').props('dark outlined id="pwd_val"')
+                # We assign name attributes so our pure JS can find the input fields robustly
+                emp_id = ui.input('Employee ID', placeholder='e.g. EMP001').classes('w-full').props('dark outlined name="employee_id"')
+                password = ui.input('Password', password=True, password_toggle_button=True).classes('w-full').props('dark outlined name="password"')
                 
                 # Pure Javascript to manually extract values and submit them as a POST request
                 ui.add_body_html('''
                 <script>
                 function doNativeLogin() {
-                    var empEl = document.getElementById("emp_val");
-                    var pwdEl = document.getElementById("pwd_val");
-                    if (!empEl || !pwdEl) { alert("Error: Could not find input elements in DOM."); return; }
+                    var empInput = document.querySelector('input[name="employee_id"]');
+                    var pwdInput = document.querySelector('input[name="password"]');
                     
-                    var empInput = (empEl.tagName.toUpperCase() === "INPUT") ? empEl : empEl.querySelector("input");
-                    var pwdInput = (pwdEl.tagName.toUpperCase() === "INPUT") ? pwdEl : pwdEl.querySelector("input");
-                    
-                    if (!empInput || !pwdInput) { alert("Error: Could not find actual input tags."); return; }
+                    if (!empInput || !pwdInput) { 
+                        alert("Error: Could not find the input fields on the page. Please contact support."); 
+                        return; 
+                    }
                     
                     if (!empInput.value || !pwdInput.value) {
                         alert("Please fill all fields");
