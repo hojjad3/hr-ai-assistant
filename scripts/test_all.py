@@ -37,3 +37,59 @@ def evaluate_mrr(k: int=5) -> str:
     avg_time = total_time / len(MRR_EVAL_DATASET) * 1000
     md_output.extend(['', f'**Overall MRR@{k}:** {mrr:.4f}  ', f'**Average Query Time:** {avg_time:.2f}ms', '', '---', ''])
     return '\n'.join(md_output)
+
+async def run_comprehensive_test(mrr_markdown: str):
+    print('Running Comprehensive End-to-End Agent Test...')
+    results = []
+    correct_count = 0
+    total = len(COMPREHENSIVE_QUESTIONS)
+    async with httpx.AsyncClient() as client:
+        for i, test_case in enumerate(COMPREHENSIVE_QUESTIONS):
+            q = test_case['q']
+            expected_source = test_case['source']
+            keywords = test_case['keywords']
+            print(f'Testing [{i + 1}/{total}]: {q}')
+            req = {'employee_id': 'EMP001', 'question': q}
+            try:
+                resp = await client.post('http://127.0.0.1:8000/ask', json=req, timeout=30.0)
+                resp.raise_for_status()
+                data = resp.json()
+                actual_answer = data['answer']
+                actual_source = data['source']
+                source_correct = expected_source is None or actual_source == expected_source
+                keyword_correct = any((kw.lower() in actual_answer.lower() for kw in keywords))
+                is_correct = source_correct and keyword_correct
+                if is_correct:
+                    correct_count += 1
+                results.append({'question': q, 'answer': actual_answer, 'source': actual_source, 'expected_source': expected_source, 'is_correct': is_correct, 'error': None})
+            except Exception as e:
+                print(f'Error testing: {e}')
+                results.append({'question': q, 'answer': f'Error: {str(e)}', 'source': 'error', 'expected_source': expected_source, 'is_correct': False, 'error': str(e)})
+            await asyncio.sleep(5)
+    os.makedirs('tests', exist_ok=True)
+    with open('tests/comprehensive_results.md', 'w', encoding='utf-8') as f:
+        f.write('# Automated Test Report\n\n')
+        f.write(mrr_markdown)
+        f.write('## Part 2: Comprehensive End-to-End Agent Test\n\n')
+        percentage = correct_count / total * 100
+        f.write(f'### **Final Score:** {correct_count} / {total} ({percentage:.1f}%)\n\n')
+        for i, r in enumerate(results):
+            status_icon = 'correct' if r['is_correct'] else 'wrong'
+            f.write(f"### Q{i + 1}: {r['question']} {status_icon}\n")
+            f.write(f"- **Agent Answer:** {r['answer']}\n")
+            f.write(f"- **Actual Source:** `{r['source']}` (Expected: `{(r['expected_source'] if r['expected_source'] else 'Any')}`)\n")
+            f.write('\n')
+    print(f'\nDone! Score: {correct_count}/{total} ({percentage:.1f}%). Results saved to tests/comprehensive_results.md')
+if __name__ == '__main__':
+    mrr_output = evaluate_mrr()
+    try:
+        httpx.get('http://127.0.0.1:8000', timeout=1.0)
+        asyncio.run(run_comprehensive_test(mrr_output))
+    except httpx.RequestError:
+        print('\nSkipping Part 2 (End-to-End Test) because the FastAPI server is not running on http://127.0.0.1:8000')
+        print('To run the comprehensive test, start the server first: `uv run python -m main`')
+        os.makedirs('tests', exist_ok=True)
+        with open('tests/comprehensive_results.md', 'w', encoding='utf-8') as f:
+            f.write('# Automated Test Report\n\n')
+            f.write(mrr_output)
+            f.write('\n*End-to-End tests skipped because server was offline.*\n')
