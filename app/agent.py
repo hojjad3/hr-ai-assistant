@@ -19,3 +19,12 @@ def get_llm_client() -> ChatGroq:
     if _LLM_CLIENT is None:
         _LLM_CLIENT = ChatGroq(model='openai/gpt-oss-20b')
     return _LLM_CLIENT
+
+def create_model() -> ChatGroq:
+
+    def query_employee_data_tool(employee_id: str | None=None, fields: list[str] | None=None, filters: dict[str, Any] | None=None, aggregate: str | None=None, aggregate_field: str | None=None) -> str:
+        pass
+
+    def policy_search_tool(query: str, k: int=4) -> str:
+        pass
+    return get_llm_client().bind_tools([query_employee_data_tool, policy_search_tool])
