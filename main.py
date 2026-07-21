@@ -110,6 +110,7 @@ def get_sessions(employee_id: str) -> SessionsResponse:
         cursor.execute('SELECT session_id, title, created_at FROM user_sessions WHERE employee_id = ? ORDER BY created_at DESC', (employee_id,))
         sessions = [SessionItem(session_id=row[0], title=row[1], created_at=row[2]) for row in cursor.fetchall()]
     return SessionsResponse(sessions=sessions)
+app.storage.secret = os.environ.get('STORAGE_SECRET', 'hr_secret_key_change_me')
 setup_gui()
 if __name__ in {'__main__', '__mp_main__'}:
     storage_secret = os.environ.get('STORAGE_SECRET', 'hr_secret_key_change_me')
