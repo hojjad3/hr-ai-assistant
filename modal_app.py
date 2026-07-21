@@ -24,16 +24,15 @@ app = modal.App("hr-ai-assistant", image=image)
     ],
     max_containers=1,
 )
-@modal.concurrent(max_inputs=100)
 @modal.asgi_app()
 def fastapi_app():
     # Set the storage secret if not defined
     os.environ.setdefault("STORAGE_SECRET", "modal_hr_secret_key")
     
-    # Import the FastAPI app from main.py
+    # Import the FastAPI app from main.py  
     from main import app as fastapi
     import socketio
     from nicegui import core
     
-    # Wrap the FastAPI app with Socket.IO to enable NiceGUI's WebSockets
+    # Wrap with Socket.IO so NiceGUI's WebSocket connections work on Modal
     return socketio.ASGIApp(core.sio, fastapi, socketio_path='/socket.io')
