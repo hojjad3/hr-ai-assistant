@@ -29,8 +29,7 @@ def setup_gui() -> None:
                 password = ui.input('Password', password=True, password_toggle_button=True).classes('w-full').props('dark outlined id="pwd_val"')
                 
                 # Pure Javascript to manually extract values and submit them as a POST request
-                # This guarantees no interference from Vue, Quasar, or WebSockets.
-                js_submit = '''
+                ui.add_body_html('''
                 <script>
                 function doNativeLogin() {
                     var empWrapper = document.getElementById("emp_val");
@@ -66,11 +65,13 @@ def setup_gui() -> None:
                     form.submit();
                 }
                 </script>
+                ''')
+                
+                ui.html('''
                 <button type="button" class="w-full custom-btn mt-2" style="width: 100%; border: none; cursor: pointer; padding: 12px; font-family: inherit;" onclick="doNativeLogin()">
                     Sign In
                 </button>
-                '''
-                ui.html(js_submit)
+                ''')
 
     @ui.page('/', dark=True)
     async def chat_page(request: Request):
