@@ -46,6 +46,11 @@ def _ensure_sessions_table() -> None:
         conn.execute('\n            CREATE TABLE IF NOT EXISTS user_sessions (\n                session_id TEXT PRIMARY KEY,\n                employee_id TEXT,\n                title TEXT,\n                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n            )\n        ')
 _ensure_sessions_table()
 
+from fastapi import FastAPI
+app = FastAPI()
+
+# The @app.post and @app.get decorators will now use the custom FastAPI app automatically
+
 @app.post('/ask', response_model=AskResponse)
 def ask(payload: AskRequest) -> AskResponse:
     thread_id = payload.session_id or str(uuid.uuid4())
@@ -110,8 +115,6 @@ def get_sessions(employee_id: str) -> SessionsResponse:
         cursor.execute('SELECT session_id, title, created_at FROM user_sessions WHERE employee_id = ? ORDER BY created_at DESC', (employee_id,))
         sessions = [SessionItem(session_id=row[0], title=row[1], created_at=row[2]) for row in cursor.fetchall()]
     return SessionsResponse(sessions=sessions)
-app.storage.secret = os.environ.get('STORAGE_SECRET', 'hr_secret_key_change_me')
+
 setup_gui()
-if __name__ in {'__main__', '__mp_main__'}:
-    storage_secret = os.environ.get('STORAGE_SECRET', 'hr_secret_key_change_me')
-    ui.run(host='0.0.0.0', port=8000, storage_secret=storage_secret)
+ui.run_with(app, storage_secret=os.environ.get('STORAGE_SECRET', 'hr_secret_key_change_me'))
