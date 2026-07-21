@@ -49,7 +49,10 @@ _ensure_sessions_table()
 
 from fastapi import FastAPI, UploadFile, File, Form, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse as FastAPIRedirect
+from starlette.middleware.sessions import SessionMiddleware
+
 app = FastAPI()
+app.add_middleware(SessionMiddleware, secret_key=os.environ.get('STORAGE_SECRET', 'super_secret_key_hr'))
 
 # The @app.post and @app.get decorators will now use the custom FastAPI app automatically
 
