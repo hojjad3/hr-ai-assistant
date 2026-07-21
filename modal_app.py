@@ -5,6 +5,9 @@ import os
 image = (
     modal.Image.debian_slim(python_version="3.12")
     .pip_install_from_requirements("requirements.txt")
+    .add_local_dir("data", remote_path="/root/data")
+    .add_local_dir("app", remote_path="/root/app")
+    .add_local_file("main.py", remote_path="/root/main.py")
 )
 
 # Define a persistent network volume for dynamic state (DBs)
@@ -12,12 +15,8 @@ storage_vol = modal.Volume.from_name("hr-ai-storage", create_if_missing=True)
 
 app = modal.App("hr-ai-assistant", image=image)
 
-# Mount the static data folders as pure Modal Mounts, and the volume to /storage
+# Define the function with the custom image, volume, and secrets
 @app.function(
-    mounts=[
-        modal.Mount.from_local_dir("data", remote_path="/root/data"),
-        modal.Mount.from_local_dir("app", remote_path="/root/app"),
-    ],
     volumes={"/root/storage": storage_vol},
     secrets=[
         modal.Secret.from_name("groq-secret"),
@@ -31,4 +30,8 @@ def fastapi_app():
     
     # Import the FastAPI app from main.py
     from main import app as fastapi
-    return fastapi
+    import socketio
+    from nicegui import core
+    
+    # Wrap the FastAPI app with Socket.IO to enable NiceGUI's WebSockets
+    return socketio.ASGIApp(core.sio, fastapi, socketio_path='/socket.io')
