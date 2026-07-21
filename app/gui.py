@@ -4,16 +4,21 @@ import pandas as pd
 import os
 from fastapi.responses import RedirectResponse
 
+from fastapi import Request
+
 def setup_gui() -> None:
 
     def inject_styles() -> None:
         ui.add_head_html("\n        <style>\n        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');\n        body { font-family: 'Outfit', sans-serif; background: radial-gradient(circle at top right, #1e1b4b 0%, #0f172a 100%); color: #f8fafc; margin: 0; min-height: 100vh; }\n        .glass-header { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding: 20px; position: sticky; top: 0; z-index: 50; }\n        .chat-bubble-user { background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%); color: white; border-radius: 20px 20px 0 20px; padding: 16px 20px; align-self: flex-end; max-width: 80%; box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3); animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1); }\n        .chat-bubble-agent { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); color: #e2e8f0; border-radius: 20px 20px 20px 0; padding: 16px 20px; align-self: flex-start; max-width: 80%; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); animation: slideInLeft 0.4s cubic-bezier(0.16, 1, 0.3, 1); }\n        .source-badge { background: rgba(0, 0, 0, 0.4); color: #818cf8; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; margin-top: 12px; display: inline-flex; align-items: center; gap: 6px; }\n        .input-panel { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(12px); border-top: 1px solid rgba(255, 255, 255, 0.05); padding: 24px; position: sticky; bottom: 0; }\n        .custom-btn { background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%) !important; border-radius: 12px !important; color: white !important; font-weight: 600 !important; text-transform: none !important; font-size: 1rem !important; padding: 8px 24px !important; transition: transform 0.2s ease !important; }\n        .custom-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(139, 92, 246, 0.4) !important; }\n        .login-card { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3); padding: 40px; width: 100%; max-width: 400px; animation: fadeIn 0.5s ease-out; }\n        @keyframes slideInRight { from { opacity: 0; transform: translateX(30px) scale(0.95); } to { opacity: 1; transform: translateX(0) scale(1); } }\n        @keyframes slideInLeft { from { opacity: 0; transform: translateX(-30px) scale(0.95); } to { opacity: 1; transform: translateX(0) scale(1); } }\n        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }\n        .chat-container-wrapper { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.2) transparent; }\n        .glass-drawer { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(16px); border-right: 1px solid rgba(255, 255, 255, 0.05); }\n        </style>\n        ")
 
     @ui.page('/login', dark=True)
-    def login_page():
+    def login_page(request: Request):
         inject_styles()
-        if app.storage.user.get('authenticated'):
+        
+        # Check both session mechanisms
+        if request.session.get('authenticated'):
             return RedirectResponse('/')
+            
         with ui.column().classes('w-full min-h-screen items-center justify-center p-4'):
             with ui.column().classes('login-card items-center gap-6'):
                 ui.icon('psychology', size='4rem', color='#818cf8')
@@ -38,37 +43,57 @@ def setup_gui() -> None:
                         if password.value != login_password:
                             ui.notify('Invalid password', type='negative', position='top')
                             return
-                        app.storage.user['authenticated'] = True
-                        app.storage.user['employee_id'] = emp_id.value
-                        employee_row = df.loc[df['employee_id'] == emp_id.value].iloc[0]
-                        app.storage.user['employee_name'] = employee_row['full_name']
-                        ui.navigate.to('/')
+                        
+                        # Generate hidden form submission script to perform true HTTP POST
+                        js_code = f"""
+                            const form = document.createElement("form");
+                            form.method = "POST";
+                            form.action = "/api/login";
+                            const empInput = document.createElement("input");
+                            empInput.type = "hidden";
+                            empInput.name = "employee_id";
+                            empInput.value = "{emp_id.value}";
+                            form.appendChild(empInput);
+                            const pwdInput = document.createElement("input");
+                            pwdInput.type = "hidden";
+                            pwdInput.name = "password";
+                            pwdInput.value = "{password.value}";
+                            form.appendChild(pwdInput);
+                            document.body.appendChild(form);
+                            form.submit();
+                        """
+                        ui.run_javascript(js_code)
                     except Exception as e:
                         ui.notify(f'Login error: {e}', type='negative', position='top')
                 ui.button('Sign In', on_click=do_login).classes('w-full custom-btn mt-2')
 
     @ui.page('/', dark=True)
-    async def chat_page():
+    async def chat_page(request: Request):
         inject_styles()
-        if not app.storage.user.get('authenticated'):
+        
+        # Read standard SessionMiddleware keys
+        if not request.session.get('authenticated'):
             return RedirectResponse('/login')
+            
         import uuid
-        if not app.storage.user.get('session_id'):
-            app.storage.user['session_id'] = str(uuid.uuid4())
-        employee_id = app.storage.user.get('employee_id')
-        session_id = app.storage.user.get('session_id')
-        employee_name = app.storage.user.get('employee_name')
+        if not request.session.get('session_id'):
+            request.session['session_id'] = str(uuid.uuid4())
+            
+        employee_id = request.session.get('employee_id')
+        session_id = request.session.get('session_id')
+        employee_name = request.session.get('employee_name')
+        
         if not employee_name:
             df = pd.read_csv(os.path.join('data', 'employees.csv'))
             match = df.loc[df['employee_id'] == employee_id, 'full_name']
             employee_name = match.iloc[0] if not match.empty else employee_id
-            app.storage.user['employee_name'] = employee_name
+            request.session['employee_name'] = employee_name
+            
         with ui.left_drawer(value=True).classes('glass-drawer text-white p-4') as drawer:
-
-            def new_chat() -> None:
-                app.storage.user['session_id'] = str(uuid.uuid4())
-                ui.navigate.to('/')
-            ui.button('New Chat', on_click=new_chat).props('outline color="white" icon="add"').classes('w-full mb-6 rounded-xl custom-btn shadow-lg')
+            
+            # Use ui.link styled as a button for robust HTTP GET navigation
+            ui.link('New Chat', '/api/new_chat').classes('w-full mb-6 rounded-xl custom-btn shadow-lg text-center block no-underline text-white font-semibold py-2')
+            
             ui.markdown('### Previous Chats').classes('mb-2 ml-2 tracking-tight')
 
             async def load_sessions() -> None:
@@ -80,16 +105,13 @@ def setup_gui() -> None:
                     if not sessions:
                         ui.label('No previous chats found.').classes('text-gray-400 italic ml-2 mt-4')
                     for s in sessions:
-
-                        def switch_session(sid=s.session_id):
-                            app.storage.user['session_id'] = sid
-                            ui.navigate.to('/')
                         is_current = s.session_id == session_id
-                        btn_class = 'w-full text-left truncate justify-start rounded bg-white/20 px-4 py-2' if is_current else 'w-full text-left truncate justify-start rounded hover:bg-white/5 px-4 py-2'
-                        ui.button(s.title, on_click=lambda sid=s.session_id: switch_session(sid)).props('flat color="white" no-caps').classes(btn_class)
+                        btn_class = 'w-full text-left truncate justify-start rounded bg-white/20 px-4 py-2 block no-underline text-white' if is_current else 'w-full text-left truncate justify-start rounded hover:bg-white/5 px-4 py-2 block no-underline text-white'
+                        ui.link(s.title, f'/api/switch_session?sid={s.session_id}').classes(btn_class)
                 except Exception:
                     ui.label('Could not load sessions.').classes('text-red-400 italic ml-2')
             ui.timer(0, load_sessions, once=True)
+            
         with ui.header().classes('w-full items-center justify-between glass-header flex flex-row'):
             with ui.row().classes('items-center gap-4'):
                 ui.button(on_click=drawer.toggle, icon='menu').props('flat color="white"').classes('mr-2')
@@ -97,11 +119,9 @@ def setup_gui() -> None:
                 ui.markdown('### HR AI Assistant').classes('m-0 p-0 font-bold tracking-tight text-white')
             with ui.row().classes('items-center gap-4'):
                 ui.label(f'{employee_name}').classes('font-semibold text-gray-300')
-
-                def logout() -> None:
-                    app.storage.user.clear()
-                    ui.navigate.to('/login')
-                ui.button('Logout', on_click=logout).props('outline color="white"').classes('rounded-xl')
+                
+                # Use ui.link styled as a button for robust logout
+                ui.link('Logout', '/api/logout').classes('rounded-xl border border-white px-4 py-1 text-white no-underline hover:bg-white/10 transition-colors')
         with ui.column().classes('w-full max-w-4xl mx-auto p-6 flex-grow chat-container-wrapper').style('min-height: 70vh; margin-bottom: 100px;'):
             chat_container = ui.column().classes('w-full gap-6 flex flex-col')
 
