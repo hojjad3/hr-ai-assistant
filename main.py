@@ -77,3 +77,26 @@ def ask(payload: AskRequest) -> AskResponse:
     if 'i dont know' in answer.lower().replace("'", '').replace('’', ''):
         source = 'unknown'
     return AskResponse(answer=answer, source=source)
+
+@app.get('/history/{session_id}', response_model=HistoryResponse)
+def get_history(session_id: str) -> HistoryResponse:
+    config = {'configurable': {'thread_id': session_id}}
+    state = graph.get_state(config)
+    if not state or not state.values:
+        return HistoryResponse(messages=[])
+    messages = state.values.get('messages', [])
+    history = []
+    current_source = None
+    for msg in messages:
+        if isinstance(msg, HumanMessage):
+            history.append(HistoryItem(role='User', text=str(msg.content)))
+            current_source = None
+        elif isinstance(msg, ToolMessage):
+            if msg.name == 'query_employee_data_tool':
+                current_source = 'structured_data'
+            elif msg.name == 'policy_search_tool':
+                current_source = 'rag'
+        elif isinstance(msg, AIMessage) and msg.content:
+            history.append(HistoryItem(role='Agent', text=str(msg.content), source=current_source))
+            current_source = None
+    return HistoryResponse(messages=history)
