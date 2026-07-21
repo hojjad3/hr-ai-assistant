@@ -46,60 +46,8 @@ def _ensure_sessions_table() -> None:
         conn.execute('\n            CREATE TABLE IF NOT EXISTS user_sessions (\n                session_id TEXT PRIMARY KEY,\n                employee_id TEXT,\n                title TEXT,\n                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n            )\n        ')
 _ensure_sessions_table()
 
-from fastapi import FastAPI, Request
-from fastapi.responses import RedirectResponse as FastAPIRedirect
-from starlette.middleware.sessions import SessionMiddleware
-import pandas as pd
-
+from fastapi import FastAPI
 app = FastAPI()
-_storage_secret = os.environ.get('STORAGE_SECRET', 'hr_secret_key_change_me')
-app.add_middleware(SessionMiddleware, secret_key=_storage_secret)
-
-@app.post('/api/login')
-async def api_login(request: Request):
-    """Handle login via regular HTML form POST - no WebSocket needed."""
-    form = await request.form()
-    emp_id = str(form.get('employee_id', '')).strip()
-    pwd = str(form.get('password', '')).strip()
-    
-    if not emp_id or not pwd:
-        return FastAPIRedirect('/login?error=empty', status_code=303)
-    
-    csv_path = os.path.join('data', 'employees.csv')
-    df = pd.read_csv(csv_path)
-    
-    if emp_id not in df['employee_id'].values:
-        return FastAPIRedirect('/login?error=notfound', status_code=303)
-    
-    login_password = os.environ.get('LOGIN_PASSWORD', 'password123')
-    if pwd != login_password:
-        return FastAPIRedirect('/login?error=badpwd', status_code=303)
-    
-    employee_row = df.loc[df['employee_id'] == emp_id].iloc[0]
-    
-    # Set standard keys
-    request.session['authenticated'] = True
-    request.session['employee_id'] = emp_id
-    request.session['employee_name'] = employee_row['full_name']
-    
-    return FastAPIRedirect('/', status_code=303)
-
-@app.get('/api/logout')
-async def api_logout(request: Request):
-    """Handle logout via regular HTTP GET - no WebSocket needed."""
-    request.session.clear()
-    return FastAPIRedirect('/login', status_code=303)
-
-@app.get('/api/new_chat')
-async def api_new_chat(request: Request):
-    import uuid
-    request.session['session_id'] = str(uuid.uuid4())
-    return FastAPIRedirect('/', status_code=303)
-
-@app.get('/api/switch_session')
-async def api_switch_session(request: Request, sid: str):
-    request.session['session_id'] = sid
-    return FastAPIRedirect('/', status_code=303)
 
 # The @app.post and @app.get decorators will now use the custom FastAPI app automatically
 

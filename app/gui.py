@@ -3,7 +3,6 @@ import httpx
 import pandas as pd
 import os
 from fastapi.responses import RedirectResponse
-from fastapi import Request
 
 def setup_gui() -> None:
 
@@ -11,68 +10,66 @@ def setup_gui() -> None:
         ui.add_head_html("\n        <style>\n        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');\n        body { font-family: 'Outfit', sans-serif; background: radial-gradient(circle at top right, #1e1b4b 0%, #0f172a 100%); color: #f8fafc; margin: 0; min-height: 100vh; }\n        .glass-header { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding: 20px; position: sticky; top: 0; z-index: 50; }\n        .chat-bubble-user { background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%); color: white; border-radius: 20px 20px 0 20px; padding: 16px 20px; align-self: flex-end; max-width: 80%; box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3); animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1); }\n        .chat-bubble-agent { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); color: #e2e8f0; border-radius: 20px 20px 20px 0; padding: 16px 20px; align-self: flex-start; max-width: 80%; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); animation: slideInLeft 0.4s cubic-bezier(0.16, 1, 0.3, 1); }\n        .source-badge { background: rgba(0, 0, 0, 0.4); color: #818cf8; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; margin-top: 12px; display: inline-flex; align-items: center; gap: 6px; }\n        .input-panel { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(12px); border-top: 1px solid rgba(255, 255, 255, 0.05); padding: 24px; position: sticky; bottom: 0; }\n        .custom-btn { background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%) !important; border-radius: 12px !important; color: white !important; font-weight: 600 !important; text-transform: none !important; font-size: 1rem !important; padding: 8px 24px !important; transition: transform 0.2s ease !important; }\n        .custom-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(139, 92, 246, 0.4) !important; }\n        .login-card { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3); padding: 40px; width: 100%; max-width: 400px; animation: fadeIn 0.5s ease-out; }\n        @keyframes slideInRight { from { opacity: 0; transform: translateX(30px) scale(0.95); } to { opacity: 1; transform: translateX(0) scale(1); } }\n        @keyframes slideInLeft { from { opacity: 0; transform: translateX(-30px) scale(0.95); } to { opacity: 1; transform: translateX(0) scale(1); } }\n        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }\n        .chat-container-wrapper { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.2) transparent; }\n        .glass-drawer { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(16px); border-right: 1px solid rgba(255, 255, 255, 0.05); }\n        </style>\n        ")
 
     @ui.page('/login', dark=True)
-    def login_page(request: Request):
+    def login_page():
         inject_styles()
-        
-        # Check standard SessionMiddleware key
-        if request.session.get('authenticated'):
+        if app.storage.user.get('authenticated'):
             return RedirectResponse('/')
-            
-        # Display errors if any
-        err = request.query_params.get('error')
-        if err == 'empty':
-            ui.notify('Please fill all fields', type='warning', position='top')
-        elif err == 'notfound':
-            ui.notify('Employee ID not found in database', type='negative', position='top')
-        elif err == 'badpwd':
-            ui.notify('Invalid password', type='negative', position='top')
-            
         with ui.column().classes('w-full min-h-screen items-center justify-center p-4'):
             with ui.column().classes('login-card items-center gap-6'):
                 ui.icon('psychology', size='4rem', color='#818cf8')
                 ui.markdown('### HR Assistant Login').classes('m-0 p-0 font-bold tracking-tight text-white')
-                
-                # HTML Form for true HTTP POST without WebSocket dependency
-                ui.html('''
-                    <form id="loginForm" action="/api/login" method="POST" style="width: 100%; display: flex; flex-direction: column; gap: 1rem;">
-                        <input type="text" name="employee_id" placeholder="Employee ID (e.g. EMP001)" required
-                               style="width: 100%; padding: 0.85rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.2); color: white; outline: none; font-family: inherit; font-size: 1rem;">
-                        <input type="password" name="password" placeholder="Password" required
-                               style="width: 100%; padding: 0.85rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.2); color: white; outline: none; font-family: inherit; font-size: 1rem;">
-                        <button type="button" onclick="document.getElementById('loginForm').submit();" style="width: 100%; padding: 0.85rem; border-radius: 12px; border: none; background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); color: white; font-weight: 600; font-family: inherit; font-size: 1rem; cursor: pointer; margin-top: 0.5rem; transition: transform 0.2s ease;">Sign In</button>
-                    </form>
-                ''')
+                emp_id = ui.input('Employee ID', placeholder='e.g. EMP001').classes('w-full').props('dark outlined')
+                password = ui.input('Password', password=True, password_toggle_button=True).classes('w-full').props('dark outlined')
+
+                def do_login() -> None:
+                    try:
+                        if not emp_id.value or not password.value:
+                            ui.notify('Please fill all fields', type='warning', position='top')
+                            return
+                        csv_path = os.path.join('data', 'employees.csv')
+                        if not os.path.exists(csv_path):
+                            ui.notify(f'Data file not found: {csv_path}', type='negative', position='top')
+                            return
+                        df = pd.read_csv(csv_path)
+                        if emp_id.value not in df['employee_id'].values:
+                            ui.notify('Employee ID not found in database', type='negative', position='top')
+                            return
+                        login_password = os.environ.get('LOGIN_PASSWORD', 'password123')
+                        if password.value != login_password:
+                            ui.notify('Invalid password', type='negative', position='top')
+                            return
+                        app.storage.user['authenticated'] = True
+                        app.storage.user['employee_id'] = emp_id.value
+                        employee_row = df.loc[df['employee_id'] == emp_id.value].iloc[0]
+                        app.storage.user['employee_name'] = employee_row['full_name']
+                        ui.notify('Login successful! Redirecting...', type='positive', position='top')
+                        ui.run_javascript('setTimeout(function(){ window.location.href = "/"; }, 500)')
+                    except Exception as e:
+                        ui.notify(f'Login error: {e}', type='negative', position='top')
+                ui.button('Sign In', on_click=do_login).classes('w-full custom-btn mt-2')
 
     @ui.page('/', dark=True)
-    async def chat_page(request: Request):
+    async def chat_page():
         inject_styles()
-        
-        # Read standard SessionMiddleware keys
-        if not request.session.get('authenticated'):
+        if not app.storage.user.get('authenticated'):
             return RedirectResponse('/login')
-            
         import uuid
-        if not request.session.get('session_id'):
-            request.session['session_id'] = str(uuid.uuid4())
-            
-        employee_id = request.session.get('employee_id')
-        session_id = request.session.get('session_id')
-        employee_name = request.session.get('employee_name')
-        
+        if not app.storage.user.get('session_id'):
+            app.storage.user['session_id'] = str(uuid.uuid4())
+        employee_id = app.storage.user.get('employee_id')
+        session_id = app.storage.user.get('session_id')
+        employee_name = app.storage.user.get('employee_name')
         if not employee_name:
             df = pd.read_csv(os.path.join('data', 'employees.csv'))
             match = df.loc[df['employee_id'] == employee_id, 'full_name']
             employee_name = match.iloc[0] if not match.empty else employee_id
-            request.session['employee_name'] = employee_name
+            app.storage.user['employee_name'] = employee_name
         with ui.left_drawer(value=True).classes('glass-drawer text-white p-4') as drawer:
-            
-            # Use raw HTML anchor for robust HTTP GET navigation without WebSockets
-            ui.html('''
-                <a href="/api/new_chat" style="display: block; width: 100%; margin-bottom: 1.5rem; text-align: center; text-decoration: none;" class="custom-btn shadow-lg">
-                    <span class="material-icons" style="vertical-align: middle; margin-right: 8px;">add</span>New Chat
-                </a>
-            ''')
-            
+
+            def new_chat() -> None:
+                app.storage.user['session_id'] = str(uuid.uuid4())
+                ui.run_javascript('window.location.href = "/"')
+            ui.button('New Chat', on_click=new_chat).props('outline color="white" icon="add"').classes('w-full mb-6 rounded-xl custom-btn shadow-lg')
             ui.markdown('### Previous Chats').classes('mb-2 ml-2 tracking-tight')
 
             async def load_sessions() -> None:
@@ -84,22 +81,16 @@ def setup_gui() -> None:
                     if not sessions:
                         ui.label('No previous chats found.').classes('text-gray-400 italic ml-2 mt-4')
                     for s in sessions:
+
+                        def switch_session(sid=s.session_id):
+                            app.storage.user['session_id'] = sid
+                            ui.run_javascript('window.location.href = "/"')
                         is_current = s.session_id == session_id
-                        bg_style = "background: rgba(255,255,255,0.2);" if is_current else ""
-                        hover_class = "" if is_current else "hover:bg-white/5"
-                        
-                        # Use raw HTML anchor for switching sessions
-                        ui.html(f'''
-                            <a href="/api/switch_session?sid={s.session_id}" 
-                               style="display: block; width: 100%; text-align: left; text-decoration: none; color: white; padding: 0.5rem 1rem; border-radius: 4px; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; {bg_style}"
-                               class="{hover_class}">
-                               {s.title}
-                            </a>
-                        ''')
+                        btn_class = 'w-full text-left truncate justify-start rounded bg-white/20 px-4 py-2' if is_current else 'w-full text-left truncate justify-start rounded hover:bg-white/5 px-4 py-2'
+                        ui.button(s.title, on_click=lambda sid=s.session_id: switch_session(sid)).props('flat color="white" no-caps').classes(btn_class)
                 except Exception:
                     ui.label('Could not load sessions.').classes('text-red-400 italic ml-2')
             ui.timer(0, load_sessions, once=True)
-            
         with ui.header().classes('w-full items-center justify-between glass-header flex flex-row'):
             with ui.row().classes('items-center gap-4'):
                 ui.button(on_click=drawer.toggle, icon='menu').props('flat color="white"').classes('mr-2')
@@ -107,13 +98,11 @@ def setup_gui() -> None:
                 ui.markdown('### HR AI Assistant').classes('m-0 p-0 font-bold tracking-tight text-white')
             with ui.row().classes('items-center gap-4'):
                 ui.label(f'{employee_name}').classes('font-semibold text-gray-300')
-                
-                # Use raw HTML anchor for robust logout
-                ui.html('''
-                    <a href="/api/logout" style="border: 1px solid white; border-radius: 12px; padding: 4px 16px; color: white; text-decoration: none; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='transparent'">
-                        Logout
-                    </a>
-                ''')
+
+                def logout() -> None:
+                    app.storage.user.clear()
+                    ui.run_javascript('window.location.href = "/login"')
+                ui.button('Logout', on_click=logout).props('outline color="white"').classes('rounded-xl')
         with ui.column().classes('w-full max-w-4xl mx-auto p-6 flex-grow chat-container-wrapper').style('min-height: 70vh; margin-bottom: 100px;'):
             chat_container = ui.column().classes('w-full gap-6 flex flex-col')
 
