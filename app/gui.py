@@ -68,20 +68,20 @@ def setup_gui() -> None:
 
             async def load_sessions() -> None:
                 try:
-                    async with httpx.AsyncClient() as client:
-                        resp = await client.get(f'http://127.0.0.1:8000/sessions/{employee_id}', timeout=2.0)
-                        if resp.status_code == 200:
-                            sessions = resp.json().get('sessions', [])
-                            if not sessions:
-                                ui.label('No previous chats found.').classes('text-gray-400 italic ml-2 mt-4')
-                            for s in sessions:
+                    from main import get_sessions
+                    from nicegui import run
+                    resp = await run.io_bound(get_sessions, employee_id)
+                    sessions = resp.sessions
+                    if not sessions:
+                        ui.label('No previous chats found.').classes('text-gray-400 italic ml-2 mt-4')
+                    for s in sessions:
 
-                                def switch_session(sid=s['session_id']):
-                                    app.storage.user['session_id'] = sid
-                                    ui.navigate.to('/')
-                                is_current = s['session_id'] == session_id
-                                btn_class = 'w-full text-left truncate justify-start rounded bg-white/20 px-4 py-2' if is_current else 'w-full text-left truncate justify-start rounded hover:bg-white/5 px-4 py-2'
-                                ui.button(s['title'], on_click=lambda sid=s['session_id']: switch_session(sid)).props('flat color="white" no-caps').classes(btn_class)
+                        def switch_session(sid=s.session_id):
+                            app.storage.user['session_id'] = sid
+                            ui.navigate.to('/')
+                        is_current = s.session_id == session_id
+                        btn_class = 'w-full text-left truncate justify-start rounded bg-white/20 px-4 py-2' if is_current else 'w-full text-left truncate justify-start rounded hover:bg-white/5 px-4 py-2'
+                        ui.button(s.title, on_click=lambda sid=s.session_id: switch_session(sid)).props('flat color="white" no-caps').classes(btn_class)
                 except Exception:
                     ui.label('Could not load sessions.').classes('text-red-400 italic ml-2')
             ui.timer(0, load_sessions, once=True)
@@ -115,14 +115,14 @@ def setup_gui() -> None:
                                 ui.label(source.replace('_', ' ').title())
         loaded_history = False
         try:
-            async with httpx.AsyncClient() as client:
-                resp = await client.get(f'http://127.0.0.1:8000/history/{session_id}', timeout=2.0)
-                if resp.status_code == 200:
-                    history = resp.json().get('messages', [])
-                    if history:
-                        loaded_history = True
-                        for msg in history:
-                            display_message(msg['role'], msg['text'], msg.get('source'))
+            from main import get_history
+            from nicegui import run
+            resp = await run.io_bound(get_history, session_id)
+            history = resp.messages
+            if history:
+                loaded_history = True
+                for msg in history:
+                    display_message(msg.role, msg.text, msg.source)
         except Exception:
             pass
         if not loaded_history:
@@ -139,14 +139,13 @@ def setup_gui() -> None:
                     question_input.value = ''
                     loading_label = None
                     try:
-                        async with httpx.AsyncClient() as client:
-                            req_payload = {'employee_id': employee_id, 'question': question, 'session_id': session_id}
-                            with chat_container:
-                                loading_label = ui.label('Agent is typing...').classes('text-gray-400 italic mt-2 ml-2 animate-pulse')
-                            resp = await client.post('http://127.0.0.1:8000/ask', json=req_payload, timeout=60.0)
-                            resp.raise_for_status()
-                            data = resp.json()
-                            display_message('Agent', data['answer'], data['source'])
+                        from main import ask, AskRequest
+                        from nicegui import run
+                        req = AskRequest(employee_id=employee_id, question=question, session_id=session_id)
+                        with chat_container:
+                            loading_label = ui.label('Agent is typing...').classes('text-gray-400 italic mt-2 ml-2 animate-pulse')
+                        resp = await run.io_bound(ask, req)
+                        display_message('Agent', resp.answer, resp.source)
                     except Exception:
                         display_message('System Error', 'Unable to reach the assistant service. Please try again later.')
                     finally:

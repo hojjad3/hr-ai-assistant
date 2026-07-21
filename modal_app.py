@@ -30,4 +30,8 @@ def fastapi_app():
     
     # Import the FastAPI app from main.py
     from main import app as fastapi
-    return fastapi
+    import socketio
+    from nicegui import core
+    
+    # Wrap the FastAPI app with Socket.IO to enable NiceGUI's WebSockets
+    return socketio.ASGIApp(core.sio, fastapi, socketio_path='/socket.io')
