@@ -24,19 +24,27 @@ def setup_gui() -> None:
                 ui.icon('psychology', size='4rem', color='#818cf8')
                 ui.markdown('### HR Assistant Login').classes('m-0 p-0 font-bold tracking-tight text-white')
                 
-                # We assign name attributes so our pure JS can find the input fields robustly
-                emp_id = ui.input('Employee ID', placeholder='e.g. EMP001').classes('w-full').props('dark outlined name="employee_id"')
-                password = ui.input('Password', password=True, password_toggle_button=True).classes('w-full').props('dark outlined name="password"')
+                # We assign custom classes so our pure JS can find the input fields with 100% certainty
+                emp_id = ui.input('Employee ID', placeholder='e.g. EMP001').classes('w-full emp-input-wrapper').props('dark outlined')
+                password = ui.input('Password', password=True, password_toggle_button=True).classes('w-full pwd-input-wrapper').props('dark outlined')
                 
                 # Pure Javascript to manually extract values and submit them as a POST request
                 ui.add_body_html('''
                 <script>
                 function doNativeLogin() {
-                    var empInput = document.querySelector('input[name="employee_id"]');
-                    var pwdInput = document.querySelector('input[name="password"]');
+                    var empWrapper = document.querySelector('.emp-input-wrapper');
+                    var pwdWrapper = document.querySelector('.pwd-input-wrapper');
+                    
+                    if (!empWrapper || !pwdWrapper) { 
+                        alert("Error: Could not find the input wrappers. Please contact support."); 
+                        return; 
+                    }
+                    
+                    var empInput = empWrapper.querySelector('input');
+                    var pwdInput = pwdWrapper.querySelector('input');
                     
                     if (!empInput || !pwdInput) { 
-                        alert("Error: Could not find the input fields on the page. Please contact support."); 
+                        alert("Error: Could not find the actual input fields. Please contact support."); 
                         return; 
                     }
                     
