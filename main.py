@@ -1,4 +1,5 @@
 from typing import Literal
+import pandas as pd
 from pydantic import BaseModel
 from nicegui import ui, app
 from langchain_core.messages import HumanMessage, ToolMessage, AIMessage
