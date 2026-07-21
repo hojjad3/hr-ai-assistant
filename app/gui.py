@@ -32,13 +32,14 @@ def setup_gui() -> None:
                 ui.add_body_html('''
                 <script>
                 function doNativeLogin() {
-                    var empWrapper = document.getElementById("emp_val");
-                    var pwdWrapper = document.getElementById("pwd_val");
-                    if (!empWrapper || !pwdWrapper) return;
+                    var empEl = document.getElementById("emp_val");
+                    var pwdEl = document.getElementById("pwd_val");
+                    if (!empEl || !pwdEl) { alert("Error: Could not find input elements in DOM."); return; }
                     
-                    var empInput = empWrapper.querySelector("input");
-                    var pwdInput = pwdWrapper.querySelector("input");
-                    if (!empInput || !pwdInput) return;
+                    var empInput = (empEl.tagName.toUpperCase() === "INPUT") ? empEl : empEl.querySelector("input");
+                    var pwdInput = (pwdEl.tagName.toUpperCase() === "INPUT") ? pwdEl : pwdEl.querySelector("input");
+                    
+                    if (!empInput || !pwdInput) { alert("Error: Could not find actual input tags."); return; }
                     
                     if (!empInput.value || !pwdInput.value) {
                         alert("Please fill all fields");
