@@ -34,12 +34,12 @@ def setup_gui() -> None:
                 
                 # HTML Form for true HTTP POST without WebSocket dependency
                 ui.html('''
-                    <form action="/api/login" method="POST" style="width: 100%; display: flex; flex-direction: column; gap: 1rem;">
+                    <form id="loginForm" action="/api/login" method="POST" style="width: 100%; display: flex; flex-direction: column; gap: 1rem;">
                         <input type="text" name="employee_id" placeholder="Employee ID (e.g. EMP001)" required
                                style="width: 100%; padding: 0.85rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.2); color: white; outline: none; font-family: inherit; font-size: 1rem;">
                         <input type="password" name="password" placeholder="Password" required
                                style="width: 100%; padding: 0.85rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.2); color: white; outline: none; font-family: inherit; font-size: 1rem;">
-                        <button type="submit" style="width: 100%; padding: 0.85rem; border-radius: 12px; border: none; background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); color: white; font-weight: 600; font-family: inherit; font-size: 1rem; cursor: pointer; margin-top: 0.5rem; transition: transform 0.2s ease;">Sign In</button>
+                        <button type="button" onclick="document.getElementById('loginForm').submit();" style="width: 100%; padding: 0.85rem; border-radius: 12px; border: none; background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); color: white; font-weight: 600; font-family: inherit; font-size: 1rem; cursor: pointer; margin-top: 0.5rem; transition: transform 0.2s ease;">Sign In</button>
                     </form>
                 ''')
 
