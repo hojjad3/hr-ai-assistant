@@ -58,3 +58,9 @@ def call_tools(state: AgentState) -> dict[str, Any]:
         else:
             tool_messages.append(ToolMessage(content='Unknown tool', name=tool_name, tool_call_id=tool_call['id']))
     return {'messages': tool_messages}
+
+def should_continue(state: AgentState) -> str:
+    last_message = state['messages'][-1]
+    if isinstance(last_message, AIMessage) and last_message.tool_calls:
+        return 'call_tools'
+    return 'end'
