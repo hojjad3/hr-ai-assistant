@@ -37,7 +37,9 @@ class SessionItem(BaseModel):
 class SessionsResponse(BaseModel):
     sessions: list[SessionItem]
 graph = build_graph()
-_SESSIONS_DB_PATH = os.path.join('data', 'chat_history.sqlite')
+import os
+os.makedirs('storage', exist_ok=True)
+_SESSIONS_DB_PATH = os.path.join('storage', 'chat_history.sqlite')
 
 def _ensure_sessions_table() -> None:
     with sqlite3.connect(_SESSIONS_DB_PATH) as conn:
