@@ -42,7 +42,8 @@ def setup_gui() -> None:
                         app.storage.user['employee_id'] = emp_id.value
                         employee_row = df.loc[df['employee_id'] == emp_id.value].iloc[0]
                         app.storage.user['employee_name'] = employee_row['full_name']
-                        ui.navigate.to('/')
+                        ui.notify('Login successful! Redirecting...', type='positive', position='top')
+                        ui.run_javascript('setTimeout(function(){ window.location.href = "/"; }, 500)')
                     except Exception as e:
                         ui.notify(f'Login error: {e}', type='negative', position='top')
                 ui.button('Sign In', on_click=do_login).classes('w-full custom-btn mt-2')
@@ -67,7 +68,7 @@ def setup_gui() -> None:
 
             def new_chat() -> None:
                 app.storage.user['session_id'] = str(uuid.uuid4())
-                ui.navigate.to('/')
+                ui.run_javascript('window.location.href = "/"')
             ui.button('New Chat', on_click=new_chat).props('outline color="white" icon="add"').classes('w-full mb-6 rounded-xl custom-btn shadow-lg')
             ui.markdown('### Previous Chats').classes('mb-2 ml-2 tracking-tight')
 
@@ -83,7 +84,7 @@ def setup_gui() -> None:
 
                         def switch_session(sid=s.session_id):
                             app.storage.user['session_id'] = sid
-                            ui.navigate.to('/')
+                            ui.run_javascript('window.location.href = "/"')
                         is_current = s.session_id == session_id
                         btn_class = 'w-full text-left truncate justify-start rounded bg-white/20 px-4 py-2' if is_current else 'w-full text-left truncate justify-start rounded hover:bg-white/5 px-4 py-2'
                         ui.button(s.title, on_click=lambda sid=s.session_id: switch_session(sid)).props('flat color="white" no-caps').classes(btn_class)
@@ -100,7 +101,7 @@ def setup_gui() -> None:
 
                 def logout() -> None:
                     app.storage.user.clear()
-                    ui.navigate.to('/login')
+                    ui.run_javascript('window.location.href = "/login"')
                 ui.button('Logout', on_click=logout).props('outline color="white"').classes('rounded-xl')
         with ui.column().classes('w-full max-w-4xl mx-auto p-6 flex-grow chat-container-wrapper').style('min-height: 70vh; margin-bottom: 100px;'):
             chat_container = ui.column().classes('w-full gap-6 flex flex-col')
