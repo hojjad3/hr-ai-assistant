@@ -23,7 +23,7 @@ app = modal.App("hr-ai-assistant", image=image)
         modal.Secret.from_name("hr-login-secret")
     ],
     allow_concurrent_inputs=100,
-    concurrency_limit=1,
+    max_containers=1,
 )
 @modal.asgi_app()
 def fastapi_app():
