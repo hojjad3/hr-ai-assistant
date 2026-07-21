@@ -23,49 +23,19 @@ def setup_gui() -> None:
             with ui.column().classes('login-card items-center gap-6'):
                 ui.icon('psychology', size='4rem', color='#818cf8')
                 ui.markdown('### HR Assistant Login').classes('m-0 p-0 font-bold tracking-tight text-white')
-                emp_id = ui.input('Employee ID', placeholder='e.g. EMP001').classes('w-full').props('dark outlined')
-                password = ui.input('Password', password=True, password_toggle_button=True).classes('w-full').props('dark outlined')
-
-                def do_login() -> None:
-                    try:
-                        if not emp_id.value or not password.value:
-                            ui.notify('Please fill all fields', type='warning', position='top')
-                            return
-                        csv_path = os.path.join('data', 'employees.csv')
-                        if not os.path.exists(csv_path):
-                            ui.notify(f'Data file not found: {csv_path}', type='negative', position='top')
-                            return
-                        df = pd.read_csv(csv_path)
-                        if emp_id.value not in df['employee_id'].values:
-                            ui.notify('Employee ID not found in database', type='negative', position='top')
-                            return
-                        login_password = os.environ.get('LOGIN_PASSWORD', 'password123')
-                        if password.value != login_password:
-                            ui.notify('Invalid password', type='negative', position='top')
-                            return
-                        
-                        # Generate hidden form submission script to perform true HTTP POST
-                        js_code = f"""
-                            const form = document.createElement("form");
-                            form.method = "POST";
-                            form.action = "/api/login";
-                            const empInput = document.createElement("input");
-                            empInput.type = "hidden";
-                            empInput.name = "employee_id";
-                            empInput.value = "{emp_id.value}";
-                            form.appendChild(empInput);
-                            const pwdInput = document.createElement("input");
-                            pwdInput.type = "hidden";
-                            pwdInput.name = "password";
-                            pwdInput.value = "{password.value}";
-                            form.appendChild(pwdInput);
-                            document.body.appendChild(form);
-                            form.submit();
-                        """
-                        ui.run_javascript(js_code)
-                    except Exception as e:
-                        ui.notify(f'Login error: {e}', type='negative', position='top')
-                ui.button('Sign In', on_click=do_login).classes('w-full custom-btn mt-2')
+                
+                # Wrap NiceGUI elements in a native HTML form to bypass WebSocket completely
+                with ui.element('form').props('action="/api/login" method="POST"').classes('w-full flex flex-col gap-4'):
+                    # We pass name="..." so Quasar attaches it to the native <input>, enabling form submission
+                    ui.input('Employee ID', placeholder='e.g. EMP001').classes('w-full').props('dark outlined name="employee_id" required')
+                    ui.input('Password', password=True, password_toggle_button=True).classes('w-full').props('dark outlined name="password" required')
+                    
+                    # Native HTML submit button styled to perfectly match the NiceGUI custom-btn
+                    ui.html('''
+                        <button type="submit" class="w-full custom-btn mt-2" style="width: 100%; border: none; cursor: pointer; padding: 12px; font-family: inherit;">
+                            Sign In
+                        </button>
+                    ''')
 
     @ui.page('/', dark=True)
     async def chat_page(request: Request):
