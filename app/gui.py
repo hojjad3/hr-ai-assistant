@@ -22,23 +22,29 @@ def setup_gui() -> None:
                 password = ui.input('Password', password=True, password_toggle_button=True).classes('w-full').props('dark outlined')
 
                 def do_login() -> None:
-                    if not emp_id.value or not password.value:
-                        ui.notify('Please fill all fields', type='warning', position='top')
-                        return
-                    csv_path = os.path.join('data', 'employees.csv')
-                    df = pd.read_csv(csv_path)
-                    if emp_id.value not in df['employee_id'].values:
-                        ui.notify('Employee ID not found in database', type='negative', position='top')
-                        return
-                    login_password = os.environ.get('LOGIN_PASSWORD', 'password123')
-                    if password.value != login_password:
-                        ui.notify('Invalid password', type='negative', position='top')
-                        return
-                    app.storage.user['authenticated'] = True
-                    app.storage.user['employee_id'] = emp_id.value
-                    employee_row = df.loc[df['employee_id'] == emp_id.value].iloc[0]
-                    app.storage.user['employee_name'] = employee_row['full_name']
-                    ui.navigate.to('/')
+                    try:
+                        if not emp_id.value or not password.value:
+                            ui.notify('Please fill all fields', type='warning', position='top')
+                            return
+                        csv_path = os.path.join('data', 'employees.csv')
+                        if not os.path.exists(csv_path):
+                            ui.notify(f'Data file not found: {csv_path}', type='negative', position='top')
+                            return
+                        df = pd.read_csv(csv_path)
+                        if emp_id.value not in df['employee_id'].values:
+                            ui.notify('Employee ID not found in database', type='negative', position='top')
+                            return
+                        login_password = os.environ.get('LOGIN_PASSWORD', 'password123')
+                        if password.value != login_password:
+                            ui.notify('Invalid password', type='negative', position='top')
+                            return
+                        app.storage.user['authenticated'] = True
+                        app.storage.user['employee_id'] = emp_id.value
+                        employee_row = df.loc[df['employee_id'] == emp_id.value].iloc[0]
+                        app.storage.user['employee_name'] = employee_row['full_name']
+                        ui.navigate.to('/')
+                    except Exception as e:
+                        ui.notify(f'Login error: {e}', type='negative', position='top')
                 ui.button('Sign In', on_click=do_login).classes('w-full custom-btn mt-2')
 
     @ui.page('/', dark=True)
