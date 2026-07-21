@@ -24,18 +24,53 @@ def setup_gui() -> None:
                 ui.icon('psychology', size='4rem', color='#818cf8')
                 ui.markdown('### HR Assistant Login').classes('m-0 p-0 font-bold tracking-tight text-white')
                 
-                # Wrap NiceGUI elements in a native HTML form to bypass WebSocket completely
-                with ui.element('form').props('action="/api/login" method="POST"').classes('w-full flex flex-col gap-4'):
-                    # We pass name="..." so Quasar attaches it to the native <input>, enabling form submission
-                    ui.input('Employee ID', placeholder='e.g. EMP001').classes('w-full').props('dark outlined name="employee_id" required')
-                    ui.input('Password', password=True, password_toggle_button=True).classes('w-full').props('dark outlined name="password" required')
+                # We assign specific IDs so our pure JS can find the input fields
+                emp_id = ui.input('Employee ID', placeholder='e.g. EMP001').classes('w-full').props('dark outlined id="emp_val"')
+                password = ui.input('Password', password=True, password_toggle_button=True).classes('w-full').props('dark outlined id="pwd_val"')
+                
+                # Pure Javascript to manually extract values and submit them as a POST request
+                # This guarantees no interference from Vue, Quasar, or WebSockets.
+                js_submit = '''
+                <script>
+                function doNativeLogin() {
+                    var empWrapper = document.getElementById("emp_val");
+                    var pwdWrapper = document.getElementById("pwd_val");
+                    if (!empWrapper || !pwdWrapper) return;
                     
-                    # Native HTML submit button styled to perfectly match the NiceGUI custom-btn
-                    ui.html('''
-                        <button type="submit" class="w-full custom-btn mt-2" style="width: 100%; border: none; cursor: pointer; padding: 12px; font-family: inherit;">
-                            Sign In
-                        </button>
-                    ''')
+                    var empInput = empWrapper.querySelector("input");
+                    var pwdInput = pwdWrapper.querySelector("input");
+                    if (!empInput || !pwdInput) return;
+                    
+                    if (!empInput.value || !pwdInput.value) {
+                        alert("Please fill all fields");
+                        return;
+                    }
+                    
+                    var form = document.createElement("form");
+                    form.method = "POST";
+                    form.action = "/api/login";
+                    
+                    var eField = document.createElement("input");
+                    eField.type = "hidden";
+                    eField.name = "employee_id";
+                    eField.value = empInput.value;
+                    form.appendChild(eField);
+                    
+                    var pField = document.createElement("input");
+                    pField.type = "hidden";
+                    pField.name = "password";
+                    pField.value = pwdInput.value;
+                    form.appendChild(pField);
+                    
+                    document.body.appendChild(form);
+                    form.submit();
+                }
+                </script>
+                <button type="button" class="w-full custom-btn mt-2" style="width: 100%; border: none; cursor: pointer; padding: 12px; font-family: inherit;" onclick="doNativeLogin()">
+                    Sign In
+                </button>
+                '''
+                ui.html(js_submit)
 
     @ui.page('/', dark=True)
     async def chat_page(request: Request):
