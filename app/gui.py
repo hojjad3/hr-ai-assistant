@@ -3,6 +3,7 @@ import httpx
 import pandas as pd
 import os
 from fastapi.responses import RedirectResponse
+from fastapi import Request
 
 def setup_gui() -> None:
 
