@@ -64,3 +64,16 @@ def should_continue(state: AgentState) -> str:
     if isinstance(last_message, AIMessage) and last_message.tool_calls:
         return 'call_tools'
     return 'end'
+
+def build_graph() -> Any:
+    workflow = StateGraph(AgentState)
+    workflow.add_node('agent', call_model)
+    workflow.add_node('call_tools', call_tools)
+    workflow.add_edge(START, 'agent')
+    workflow.add_conditional_edges('agent', should_continue, {'call_tools': 'call_tools', 'end': END})
+    workflow.add_edge('call_tools', 'agent')
+    db_path = os.path.join('data', 'chat_history.sqlite')
+    conn = sqlite3.connect(db_path, check_same_thread=False)
+    memory = SqliteSaver(conn)
+    memory.setup()
+    return workflow.compile(checkpointer=memory)
