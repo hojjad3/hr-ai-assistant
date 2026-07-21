@@ -15,6 +15,7 @@ def setup_gui() -> None:
     def login_page(request: Request):
         inject_styles()
         
+        # Check both session mechanisms
         if request.session.get('authenticated'):
             return RedirectResponse('/')
             
@@ -23,20 +24,54 @@ def setup_gui() -> None:
                 ui.icon('psychology', size='4rem', color='#818cf8')
                 ui.markdown('### HR Assistant Login').classes('m-0 p-0 font-bold tracking-tight text-white')
                 
-                # Pure HTML form - browser handles submission natively.
-                # No JS, no WebSocket, no NiceGUI button magic. Just standard form POST.
+                # We assign name attributes so our pure JS can find the input fields robustly
+                emp_id = ui.input('Employee ID', placeholder='e.g. EMP001').classes('w-full').props('dark outlined name="employee_id"')
+                password = ui.input('Password', password=True, password_toggle_button=True).classes('w-full').props('dark outlined name="password"')
+                
+                # Pure Javascript to manually extract values and submit them as a POST request
+                ui.add_body_html('''
+                <script>
+                function doNativeLogin() {
+                    var empInput = document.querySelector('input[name="employee_id"]');
+                    var pwdInput = document.querySelector('input[name="password"]');
+                    
+                    if (!empInput || !pwdInput) { 
+                        alert("Error: Could not find the input fields on the page. Please contact support."); 
+                        return; 
+                    }
+                    
+                    if (!empInput.value || !pwdInput.value) {
+                        alert("Please fill all fields");
+                        return;
+                    }
+                    
+                    var form = document.createElement("form");
+                    form.method = "POST";
+                    form.action = "/api/login";
+                    
+                    var eField = document.createElement("input");
+                    eField.type = "hidden";
+                    eField.name = "employee_id";
+                    eField.value = empInput.value;
+                    form.appendChild(eField);
+                    
+                    var pField = document.createElement("input");
+                    pField.type = "hidden";
+                    pField.name = "password";
+                    pField.value = pwdInput.value;
+                    form.appendChild(pField);
+                    
+                    document.body.appendChild(form);
+                    form.submit();
+                }
+                </script>
+                ''')
+                
                 ui.html('''
-<form method="POST" action="/api/login" autocomplete="off" style="width: 100%; display: flex; flex-direction: column; gap: 16px;">
-    <input name="employee_id" type="text" placeholder="Employee ID (e.g. EMP001)" required
-           style="width: 100%; padding: 14px 16px; border-radius: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); color: white; font-size: 1rem; outline: none; box-sizing: border-box; font-family: inherit;">
-    <input name="password" type="password" placeholder="Password" required
-           style="width: 100%; padding: 14px 16px; border-radius: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); color: white; font-size: 1rem; outline: none; box-sizing: border-box; font-family: inherit;">
-    <button type="submit"
-            style="width: 100%; padding: 14px; border: none; border-radius: 12px; background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); color: white; font-weight: 600; font-size: 1rem; cursor: pointer; font-family: inherit; margin-top: 8px;">
-        Sign In
-    </button>
-</form>
-''')
+                <button type="button" class="w-full custom-btn mt-2" style="width: 100%; border: none; cursor: pointer; padding: 12px; font-family: inherit;" onclick="doNativeLogin()">
+                    Sign In
+                </button>
+                ''')
 
     @ui.page('/', dark=True)
     async def chat_page(request: Request):
