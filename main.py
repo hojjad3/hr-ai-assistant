@@ -48,7 +48,7 @@ def _ensure_sessions_table() -> None:
 _ensure_sessions_table()
 
 from fastapi import FastAPI, UploadFile, File, Form, Depends, HTTPException, Request
-from fastapi.responses import JSONResponse, RedirectResponse as FastAPIRedirect
+from fastapi.responses import JSONResponse, RedirectResponse as FastAPIRedirect, HTMLResponse
 from starlette.middleware.sessions import SessionMiddleware
 
 app = FastAPI()
@@ -90,6 +90,57 @@ def ask(payload: AskRequest) -> AskResponse:
         source = 'unknown'
     return AskResponse(answer=answer, source=source)
 
+@app.get('/login')
+def login_page(request: Request, error: str | None = None):
+    if request.session.get('authenticated'):
+        return FastAPIRedirect('/')
+        
+    error_msg = ""
+    if error == 'invalid_id':
+        error_msg = "<div style='background: rgba(239, 68, 68, 0.2); color: #fca5a5; padding: 12px; border-radius: 8px; margin-bottom: 20px; text-align: center;'>Employee ID not found.</div>"
+    elif error == 'invalid_password':
+        error_msg = "<div style='background: rgba(239, 68, 68, 0.2); color: #fca5a5; padding: 12px; border-radius: 8px; margin-bottom: 20px; text-align: center;'>Incorrect password.</div>"
+        
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>HR Assistant Login</title>
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+        body {{ font-family: 'Outfit', sans-serif; background: radial-gradient(circle at top right, #1e1b4b 0%, #0f172a 100%); color: #f8fafc; margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }}
+        .login-card {{ background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3); padding: 40px; width: 100%; max-width: 400px; animation: fadeIn 0.5s ease-out; box-sizing: border-box; }}
+        .input-group {{ margin-bottom: 20px; }}
+        .input-group label {{ display: block; margin-bottom: 8px; color: #cbd5e1; font-weight: 500; font-size: 0.9rem; }}
+        .input-group input {{ width: 100%; padding: 12px; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: white; font-family: inherit; font-size: 1rem; box-sizing: border-box; }}
+        .input-group input:focus {{ outline: none; border-color: #818cf8; }}
+        .custom-btn {{ background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); border-radius: 12px; color: white; font-weight: 600; text-transform: none; font-size: 1rem; padding: 12px 24px; transition: transform 0.2s ease; width: 100%; border: none; cursor: pointer; font-family: inherit; margin-top: 10px; }}
+        .custom-btn:hover {{ transform: translateY(-2px); box-shadow: 0 8px 25px rgba(139, 92, 246, 0.4); }}
+        h3 {{ text-align: center; font-size: 1.5rem; margin-top: 0; margin-bottom: 24px; font-weight: 700; }}
+        @keyframes fadeIn {{ from {{ opacity: 0; transform: translateY(20px); }} to {{ opacity: 1; transform: translateY(0); }} }}
+        </style>
+    </head>
+    <body>
+        <div class="login-card">
+            <h3>HR Assistant Login</h3>
+            {error_msg}
+            <form method="POST" action="/api/login">
+                <div class="input-group">
+                    <label>Employee ID</label>
+                    <input type="text" name="employee_id" placeholder="e.g. EMP001" required>
+                </div>
+                <div class="input-group">
+                    <label>Password</label>
+                    <input type="password" name="password" required>
+                </div>
+                <button type="submit" class="custom-btn">Sign In</button>
+            </form>
+        </div>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=html)
+
 @app.post('/api/login')
 async def api_login(request: Request):
     """Handle login via HTML POST so FastAPI sets the signed session cookie."""
@@ -99,28 +150,37 @@ async def api_login(request: Request):
     
     csv_path = os.path.join('data', 'employees.csv')
     df = pd.read_csv(csv_path)
-    employee_row = df.loc[df['employee_id'] == emp_id].iloc[0]
+    try:
+        employee_row = df.loc[df['employee_id'] == emp_id].iloc[0]
+    except IndexError:
+        return HTMLResponse(content='<html><head><meta http-equiv="refresh" content="0; url=/login?error=invalid_id" /></head><body>Redirecting...</body></html>')
+        
+    if pwd != "password123":
+        return HTMLResponse(content='<html><head><meta http-equiv="refresh" content="0; url=/login?error=invalid_password" /></head><body>Redirecting...</body></html>')
     
     request.session['authenticated'] = True
     request.session['employee_id'] = emp_id
     request.session['employee_name'] = employee_row['full_name']
-    return FastAPIRedirect('/', status_code=303)
+    
+    # Modal/Serverless proxies often strip Set-Cookie headers on 3xx redirects.
+    # Returning a 200 OK with a meta-refresh guarantees the cookie is saved by the browser.
+    return HTMLResponse(content='<html><head><meta http-equiv="refresh" content="0; url=/" /></head><body>Redirecting...</body></html>')
 
 @app.get('/api/logout')
 async def api_logout(request: Request):
     request.session.clear()
-    return FastAPIRedirect('/login', status_code=303)
+    return HTMLResponse(content='<html><head><meta http-equiv="refresh" content="0; url=/login" /></head><body>Logging out...</body></html>')
 
 @app.get('/api/new_chat')
 async def api_new_chat(request: Request):
     import uuid
     request.session['session_id'] = str(uuid.uuid4())
-    return FastAPIRedirect('/', status_code=303)
+    return HTMLResponse(content='<html><head><meta http-equiv="refresh" content="0; url=/" /></head><body>Starting new chat...</body></html>')
 
 @app.get('/api/switch_session')
 async def api_switch_session(request: Request, sid: str):
     request.session['session_id'] = sid
-    return FastAPIRedirect('/', status_code=303)
+    return HTMLResponse(content='<html><head><meta http-equiv="refresh" content="0; url=/" /></head><body>Switching chat...</body></html>')
 
 @app.get('/history/{session_id}', response_model=HistoryResponse)
 def get_history(session_id: str) -> HistoryResponse:

@@ -24,6 +24,7 @@ app = modal.App("hr-ai-assistant", image=image)
     ],
     max_containers=1,
 )
+@modal.concurrent(max_inputs=100)
 @modal.asgi_app()
 def fastapi_app():
     os.environ.setdefault("STORAGE_SECRET", "modal_hr_secret_key")

@@ -72,7 +72,7 @@ def build_graph() -> Any:
     workflow.add_edge(START, 'agent')
     workflow.add_conditional_edges('agent', should_continue, {'call_tools': 'call_tools', 'end': END})
     workflow.add_edge('call_tools', 'agent')
-    db_path = os.path.join('data', 'chat_history.sqlite')
+    db_path = os.path.join('storage', 'chat_history.sqlite')
     conn = sqlite3.connect(db_path, check_same_thread=False)
     memory = SqliteSaver(conn)
     memory.setup()

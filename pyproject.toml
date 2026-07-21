@@ -11,6 +11,7 @@ dependencies = [
     "langchain-text-splitters>=1.1.2",
     "langgraph>=1.2.9",
     "langgraph-checkpoint-sqlite>=3.1.0",
+    "modal>=1.5.2",
     "nicegui>=3.14.0",
     "pandas>=3.0.3",
     "pypdf>=6.14.2",

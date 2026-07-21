@@ -1,4 +1,19 @@
 from nicegui import ui, app
+
+# Import NiceGUI elements directly to trigger their class definition and component route 
+# registration. This prevents 404 errors in multi-container serverless environments without 
+# creating dummy elements that crash the background cleanup tasks.
+from nicegui.elements.timer import Timer
+from nicegui.elements.chat_message import ChatMessage
+from nicegui.elements.spinner import Spinner
+from nicegui.elements.markdown import Markdown
+from nicegui.elements.icon import Icon
+from nicegui.elements.scroll_area import ScrollArea
+from nicegui.elements.html import Html
+from nicegui.elements.input import Input
+from nicegui.elements.button import Button
+from nicegui.elements.link import Link
+
 import httpx
 import pandas as pd
 import os
@@ -11,75 +26,7 @@ def setup_gui() -> None:
     def inject_styles() -> None:
         ui.add_head_html("\n        <style>\n        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');\n        body { font-family: 'Outfit', sans-serif; background: radial-gradient(circle at top right, #1e1b4b 0%, #0f172a 100%); color: #f8fafc; margin: 0; min-height: 100vh; }\n        .glass-header { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding: 20px; position: sticky; top: 0; z-index: 50; }\n        .chat-bubble-user { background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%); color: white; border-radius: 20px 20px 0 20px; padding: 16px 20px; align-self: flex-end; max-width: 80%; box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3); animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1); }\n        .chat-bubble-agent { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); color: #e2e8f0; border-radius: 20px 20px 20px 0; padding: 16px 20px; align-self: flex-start; max-width: 80%; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); animation: slideInLeft 0.4s cubic-bezier(0.16, 1, 0.3, 1); }\n        .source-badge { background: rgba(0, 0, 0, 0.4); color: #818cf8; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; margin-top: 12px; display: inline-flex; align-items: center; gap: 6px; }\n        .input-panel { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(12px); border-top: 1px solid rgba(255, 255, 255, 0.05); padding: 24px; position: sticky; bottom: 0; }\n        .custom-btn { background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%) !important; border-radius: 12px !important; color: white !important; font-weight: 600 !important; text-transform: none !important; font-size: 1rem !important; padding: 8px 24px !important; transition: transform 0.2s ease !important; }\n        .custom-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(139, 92, 246, 0.4) !important; }\n        .login-card { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3); padding: 40px; width: 100%; max-width: 400px; animation: fadeIn 0.5s ease-out; }\n        @keyframes slideInRight { from { opacity: 0; transform: translateX(30px) scale(0.95); } to { opacity: 1; transform: translateX(0) scale(1); } }\n        @keyframes slideInLeft { from { opacity: 0; transform: translateX(-30px) scale(0.95); } to { opacity: 1; transform: translateX(0) scale(1); } }\n        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }\n        .chat-container-wrapper { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.2) transparent; }\n        .glass-drawer { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(16px); border-right: 1px solid rgba(255, 255, 255, 0.05); }\n        </style>\n        ")
 
-    @ui.page('/login', dark=True)
-    def login_page(request: Request):
-        inject_styles()
-        
-        # Check both session mechanisms
-        if request.session.get('authenticated'):
-            return RedirectResponse('/')
-            
-        with ui.column().classes('w-full min-h-screen items-center justify-center p-4'):
-            with ui.column().classes('login-card items-center gap-6'):
-                ui.icon('psychology', size='4rem', color='#818cf8')
-                ui.markdown('### HR Assistant Login').classes('m-0 p-0 font-bold tracking-tight text-white')
-                
-                # We assign custom classes so our pure JS can find the input fields with 100% certainty
-                emp_id = ui.input('Employee ID', placeholder='e.g. EMP001').classes('w-full emp-input-wrapper').props('dark outlined')
-                password = ui.input('Password', password=True, password_toggle_button=True).classes('w-full pwd-input-wrapper').props('dark outlined')
-                
-                # Pure Javascript to manually extract values and submit them as a POST request
-                ui.add_body_html('''
-                <script>
-                function doNativeLogin() {
-                    var empWrapper = document.querySelector('.emp-input-wrapper');
-                    var pwdWrapper = document.querySelector('.pwd-input-wrapper');
-                    
-                    if (!empWrapper || !pwdWrapper) { 
-                        alert("Error: Could not find the input wrappers. Please contact support."); 
-                        return; 
-                    }
-                    
-                    var empInput = empWrapper.querySelector('input');
-                    var pwdInput = pwdWrapper.querySelector('input');
-                    
-                    if (!empInput || !pwdInput) { 
-                        alert("Error: Could not find the actual input fields. Please contact support."); 
-                        return; 
-                    }
-                    
-                    if (!empInput.value || !pwdInput.value) {
-                        alert("Please fill all fields");
-                        return;
-                    }
-                    
-                    var form = document.createElement("form");
-                    form.method = "POST";
-                    form.action = "/api/login";
-                    
-                    var eField = document.createElement("input");
-                    eField.type = "hidden";
-                    eField.name = "employee_id";
-                    eField.value = empInput.value;
-                    form.appendChild(eField);
-                    
-                    var pField = document.createElement("input");
-                    pField.type = "hidden";
-                    pField.name = "password";
-                    pField.value = pwdInput.value;
-                    form.appendChild(pField);
-                    
-                    document.body.appendChild(form);
-                    form.submit();
-                }
-                </script>
-                ''')
-                
-                ui.html('''
-                <button type="button" class="w-full custom-btn mt-2" style="width: 100%; border: none; cursor: pointer; padding: 12px; font-family: inherit;" onclick="doNativeLogin()">
-                    Sign In
-                </button>
-                ''')
+    # The login page has been moved to a pure FastAPI HTML endpoint in main.py
 
     @ui.page('/', dark=True)
     async def chat_page(request: Request):
@@ -105,26 +52,24 @@ def setup_gui() -> None:
             
         with ui.left_drawer(value=True).classes('glass-drawer text-white p-4') as drawer:
             
-            # Use ui.link styled as a button for robust HTTP GET navigation
-            ui.link('New Chat', '/api/new_chat').classes('w-full mb-6 rounded-xl custom-btn shadow-lg text-center block no-underline text-white font-semibold py-2')
+            ui.html('<a href="/api/new_chat" class="w-full mb-6 rounded-xl custom-btn shadow-lg text-center block text-white font-semibold py-2" style="text-decoration: none; font-family: inherit;">New Chat</a>').classes('w-full')
             
             ui.markdown('### Previous Chats').classes('mb-2 ml-2 tracking-tight')
 
-            async def load_sessions() -> None:
-                try:
-                    from main import get_sessions
-                    from nicegui import run
-                    resp = await run.io_bound(get_sessions, employee_id)
-                    sessions = resp.sessions
-                    if not sessions:
-                        ui.label('No previous chats found.').classes('text-gray-400 italic ml-2 mt-4')
-                    for s in sessions:
-                        is_current = s.session_id == session_id
-                        btn_class = 'w-full text-left truncate justify-start rounded bg-white/20 px-4 py-2 block no-underline text-white' if is_current else 'w-full text-left truncate justify-start rounded hover:bg-white/5 px-4 py-2 block no-underline text-white'
-                        ui.link(s.title, f'/api/switch_session?sid={s.session_id}').classes(btn_class)
-                except Exception:
-                    ui.label('Could not load sessions.').classes('text-red-400 italic ml-2')
-            ui.timer(0, load_sessions, once=True)
+            try:
+                from main import get_sessions
+                from nicegui import run
+                resp = await run.io_bound(get_sessions, employee_id)
+                sessions = resp.sessions
+                if not sessions:
+                    ui.label('No previous chats found.').classes('text-gray-400 italic ml-2 mt-4')
+                for s in sessions:
+                    is_current = s.session_id == session_id
+                    btn_class = 'w-full text-left truncate justify-start rounded bg-white/20 px-4 py-2 block text-white normal-case' if is_current else 'w-full text-left truncate justify-start rounded hover:bg-white/5 px-4 py-2 block text-white normal-case'
+                    # Pure HTML native link, wrapped properly so it fills the sidebar
+                    ui.html(f'<a href="/api/switch_session?sid={s.session_id}" class="{btn_class}" style="text-decoration: none; font-family: inherit;">{s.title}</a>').classes('w-full')
+            except Exception:
+                ui.label('Could not load sessions.').classes('text-red-400 italic ml-2')
             
         with ui.header().classes('w-full items-center justify-between glass-header flex flex-row'):
             with ui.row().classes('items-center gap-4'):
@@ -134,8 +79,7 @@ def setup_gui() -> None:
             with ui.row().classes('items-center gap-4'):
                 ui.label(f'{employee_name}').classes('font-semibold text-gray-300')
                 
-                # Use ui.link styled as a button for robust logout
-                ui.link('Logout', '/api/logout').classes('rounded-xl border border-white px-4 py-1 text-white no-underline hover:bg-white/10 transition-colors')
+                ui.html('<a href="/api/logout" class="rounded-xl border border-white px-4 py-1 text-white hover:bg-white/10 transition-colors" style="text-decoration: none; font-family: inherit;">Logout</a>').classes('h-full flex items-center justify-center')
         with ui.column().classes('w-full max-w-4xl mx-auto p-6 flex-grow chat-container-wrapper').style('min-height: 70vh; margin-bottom: 100px;'):
             chat_container = ui.column().classes('w-full gap-6 flex flex-col')
 
