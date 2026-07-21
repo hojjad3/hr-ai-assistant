@@ -1,13 +1,23 @@
 # hr-ai-assistant
 HR AI assistant backend with LangGraph
 
-## Setup
+## Setup & Deployment
+This application is fully containerized and deployed on **Modal** (Serverless Infrastructure).
 1. Clone this repository
-2. Install dependencies: `pip install -r requirements.txt` (or run `uv sync` if you prefer uv)
-3. Add your free GROQ_API_KEY in a `.env` file at the project root.
-4. Run `python main.py` or `uv run main.py`
+2. Install dependencies: `pip install -r requirements.txt` (or run `uv sync`)
+3. Set up your Modal secrets in the Modal Dashboard:
+   - `groq-secret` containing `GROQ_API_KEY`
+   - `hr-login-secret` containing `STORAGE_SECRET`
+4. Deploy to Modal: `modal deploy modal_app.py`
+*(Alternatively, for local testing without Modal, you can still run `python main.py`)*
 
 ## Design Decisions
+
+### Serverless Architecture & WebSockets (Bonus)
+The application is deployed on Modal using `@modal.asgi_app()`. Because the NiceGUI frontend relies heavily on WebSockets (Socket.IO) for real-time UI updates, we implemented specific architectural decisions to support this in a serverless environment:
+1. **Concurrency Control:** We use `@modal.concurrent(max_inputs=100)` to allow a single serverless container to handle up to 100 simultaneous WebSocket connections.
+2. **Sticky Sessions:** We explicitly enforce `max_containers=1` in the Modal deployment. Since Modal's load balancer does not support sticky sessions natively, restricting the deployment to a single highly-concurrent container guarantees that WebSocket connections do not randomly drop during load balancing.
+3. **Pure Native Routing:** To prevent Vue Router from interfering with FastAPI server-side redirects (like login and session switching), all critical navigation uses pure client-side Javascript (`window.location.href`) attached to NiceGUI buttons. This guarantees 100% robust navigation regardless of WebSocket state.
 
 ### LLM Choice
 We are using `openai/gpt-oss-20b` via Groq. It serves as an effective, efficient open-source equivalent for general QA, routing, and tool calling at lower latency and zero cost, satisfying the assignment's free tier requirement. (If you prefer running fully local without an API key, you can swap `ChatGroq` for `ChatOllama` in `app/agent.py` and run Ollama locally).
@@ -25,8 +35,8 @@ If the LLM doesn't call a tool, or if the retrieved tools do not ground an answe
 
 ### Limitations & Edge Cases
 1. **Source Tie-Break Rule**: If a single query results in both `query_employee_data_tool` and `policy_search_tool` tools being executed by the LLM, the `source` field assigned in the API response will be based on the tool that was consulted *last*. The schema natively only supports "rag", "structured_data", or "unknown", so this tie-break rule correctly forces conformity.
-2. **Auth Model**: The `POST /ask` endpoint strictly accepts `{"employee_id": str, "question": str}` payloads with no complex token headers, cleanly adhering to the assessment specs. However, the *Frontend* (NiceGUI) implements a dedicated `/login` page with mock password verification, maintaining state securely in browser storage before constructing the raw payload to the backend.
-3. **Conversational Memory (Bonus)**: We implemented full, persistent conversational memory using LangGraph's `SqliteSaver`. The API strictly adheres to the stateless `{"employee_id": str, "question": str}` schema by generating a new thread ID per request (preventing test hallucination). However, the frontend passes an optional `session_id`, allowing real users to experience a complete, persistent chat history that survives server restarts! All chat data is securely stored in `data/chat_history.sqlite`.
+2. **Auth Model**: The `POST /ask` endpoint strictly accepts `{"employee_id": str, "question": str}` payloads with no complex token headers, cleanly adhering to the assessment specs. However, the *Frontend* (NiceGUI) implements a dedicated `/login` page (built in pure HTML/FastAPI to bypass WebSocket limits) with mock password verification, maintaining state securely in signed browser cookies.
+3. **Conversational Memory (Bonus)**: We implemented full, persistent conversational memory using LangGraph's `SqliteSaver`. All chat data is securely stored in a persistent **Modal Network Volume** at `/root/storage/chat_history.sqlite`, ensuring conversations survive serverless container scale-downs and restarts!
 
 ### Data Security & Privacy (Code Review Note)
 Because this application processes mock PII (such as performance ratings and leave balances), the current implementation uses the Groq API for rapid prototyping. However, for a production environment—especially in regions with strict data privacy laws (like the KSA PDPL)—sending employee PII to a third-party cloud provider without enterprise agreements may pose a compliance risk. For a fully private, production-ready deployment, the `ChatGroq` model in `app/agent.py` can be seamlessly swapped for a local `ChatOllama` model (as permitted by the assignment stack), ensuring no employee data ever leaves your internal infrastructure. Additionally, a true enterprise Identity Provider (IdP) via SSO would replace the current mock login implementation.
