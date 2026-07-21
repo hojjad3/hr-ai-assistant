@@ -1,0 +1,9 @@
+__pycache__/
+.venv/
+.env
+chroma_db/
+.ruff_cache/
+.nicegui/
+*.db
+data/
+chroma/

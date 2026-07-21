@@ -1,0 +1,26 @@
+[project]
+name = "hr-ai-assistant"
+version = "0.1.0"
+description = "Internal HR AI assistant powered by LangGraph, Groq, and ChromaDB"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "chromadb>=1.5.9",
+    "fastapi>=0.139.2",
+    "langchain-groq>=1.1.3",
+    "langchain-text-splitters>=1.1.2",
+    "langgraph>=1.2.9",
+    "langgraph-checkpoint-sqlite>=3.1.0",
+    "nicegui>=3.14.0",
+    "pandas>=3.0.3",
+    "pypdf>=6.14.2",
+    "python-dotenv>=1.2.2",
+    "sentence-transformers>=5.6.0",
+    "uvicorn[standard]>=0.51.0",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=2.3.0",
+    "ruff>=0.15.22",
+]
