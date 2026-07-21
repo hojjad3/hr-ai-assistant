@@ -37,3 +37,24 @@ def call_model(state: AgentState) -> dict[str, Any]:
     model = create_model()
     response = model.invoke(messages)
     return {'messages': [response]}
+
+def call_tools(state: AgentState) -> dict[str, Any]:
+    last_message = state['messages'][-1]
+    tool_messages = []
+    if not isinstance(last_message, AIMessage) or not last_message.tool_calls:
+        return {'messages': []}
+    for tool_call in last_message.tool_calls:
+        tool_name = tool_call['name']
+        args = tool_call['args']
+        if tool_name == 'query_employee_data_tool':
+            passed_id = args.get('employee_id')
+            if not passed_id and (not args.get('filters')):
+                passed_id = state['employee_id']
+            result = query_employee_data(employee_id=passed_id, fields=args.get('fields'), filters=args.get('filters'), aggregate=args.get('aggregate'), aggregate_field=args.get('aggregate_field'))
+            tool_messages.append(ToolMessage(content=str(result), name=tool_name, tool_call_id=tool_call['id']))
+        elif tool_name == 'policy_search_tool':
+            result = policy_search(query=args.get('query', ''), k=args.get('k', 4))
+            tool_messages.append(ToolMessage(content=str(result), name=tool_name, tool_call_id=tool_call['id']))
+        else:
+            tool_messages.append(ToolMessage(content='Unknown tool', name=tool_name, tool_call_id=tool_call['id']))
+    return {'messages': tool_messages}
